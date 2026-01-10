@@ -14,7 +14,6 @@ func main() {
 		start := time.Now()
 		concurrentResult := matrixMultiplyConcurrent(big_a, big_b, goroutines);
 		elasped := time.Since(start)
-		fmt.Println("Concurrent (%d gorountines) time: %v \n", goroutines, elasped);
 
 		var sum float32
 		for i := 0; i < len(concurrentResult); i++ {
