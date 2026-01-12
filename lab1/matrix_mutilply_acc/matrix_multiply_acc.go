@@ -1,26 +1,46 @@
 package main
 
-import ("fmt"
-		"math/rand/v2"
-	    "sync"
-		"time"
+import (
+	"fmt"
+	"math/rand/v2"
+	"sync"
+	"time"
 )
 
 func main() {
-	big_a := matrix_gen(10000, 10000);
-	big_b := matrix_gen(10000, 10000);
+	big_a := matrix_gen(1000, 1000)
+	big_b := matrix_gen(1000, 1000)
 
-	for _, goroutines := range []int {1, 2, 4, 8, 16, 32} {
+	var concurrentResult [][]float32
+	var SequentialResult [][]float32
+
+	var sumCon float32
+	var sumSeq float32
+
+	for _, goroutines := range []int{1, 2, 4, 8, 16, 32} {
 		start := time.Now()
-		concurrentResult := matrixMultiplyConcurrent(big_a, big_b, goroutines);
+		concurrentResult = matrixMultiplyConcurrent(big_a, big_b, goroutines)
 		elasped := time.Since(start)
 
-		var sum float32
+		var sumCon float32
 		for i := 0; i < len(concurrentResult); i++ {
-			sum += concurrentResult[i][i]
+			sumCon += concurrentResult[i][i]
 		}
-		fmt.Printf("Concurrent (%d goroutines) time: %v, diagonal sum: %v\n", goroutines, elasped, sum)
-	}	
+		fmt.Printf("Concurrent (%d goroutines) time: %v, diagonal sum: %v\n", goroutines, elasped, sumCon)
+	}
+
+	start2 := time.Now()
+	SequentialResult = matrixMultiplySeq(big_a, big_b)
+	for i := 0; i < len(SequentialResult); i++ {
+		sumCon += SequentialResult[i][i]
+	}
+	if sumCon == sumSeq {
+		fmt.Printf("Sequential Result != concurrentResult")
+	}
+
+	elasped2 := time.Since(start2)
+
+	fmt.Printf("Sequential time : %v\n", elasped2)
 }
 
 func matrixMultiplyConcurrent(a [][]float32, b [][]float32, numGoroutines int) [][]float32 {
@@ -35,7 +55,7 @@ func matrixMultiplyConcurrent(a [][]float32, b [][]float32, numGoroutines int) [
 	}
 
 	var wg sync.WaitGroup
-	wg.Add(numGoroutines);
+	wg.Add(numGoroutines)
 
 	// Compute row ranges for each goroutine, rounds up
 	chunkSize := (n + numGoroutines - 1) / numGoroutines
@@ -46,7 +66,7 @@ func matrixMultiplyConcurrent(a [][]float32, b [][]float32, numGoroutines int) [
 		if endRow > n {
 			endRow = n
 		}
-		
+
 		go func(start, end int) {
 			for i := start; i < end; i++ {
 				for j := 0; j < m; j++ {
@@ -58,12 +78,43 @@ func matrixMultiplyConcurrent(a [][]float32, b [][]float32, numGoroutines int) [
 				}
 			}
 			wg.Done()
-		} (startRow, endRow)
+		}(startRow, endRow)
 	}
 
-	wg.Wait();
+	wg.Wait()
 
 	return finalResult
+}
+
+func matrixMultiplySeq(a [][]float32, b [][]float32) [][]float32 {
+	rowA := len(a)
+	colA := len(a[0])
+
+	rowB := len(b)
+	colB := len(b[0])
+
+	// Check if matrices can be multiplied
+	if colA != rowB {
+		fmt.Println("cA != rB")
+		return nil
+	}
+
+	// Initialize result matrix C
+	C := make([][]float32, rowA)
+	for i := range C {
+		C[i] = make([]float32, colB)
+	}
+
+	// Perform multiplication
+	for i := 0; i < rowA; i++ {
+		for j := 0; j < colB; j++ {
+			for k := 0; k < colA; k++ {
+				C[i][j] += a[i][k] * b[k][j]
+			}
+		}
+	}
+
+	return C
 }
 
 // taken from matrix_multipliy.go
@@ -73,8 +124,8 @@ func matrix_gen(r int, c int) [][]float32 {
 		matrix[i] = make([]float32, c)
 	}
 
-	for i:=0; i<r; i++{
-		for j:=0; j<c; j++{
+	for i := 0; i < r; i++ {
+		for j := 0; j < c; j++ {
 			matrix[i][j] = rand.Float32() * 100
 		}
 	}
