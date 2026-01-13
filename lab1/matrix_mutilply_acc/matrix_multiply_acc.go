@@ -8,8 +8,8 @@ import (
 )
 
 func main() {
-	big_a := matrix_gen(1000, 1000)
-	big_b := matrix_gen(1000, 1000)
+	big_a := matrix_gen(10000, 10000)
+	big_b := matrix_gen(10000, 10000)
 
 	var concurrentResult [][]float32
 	var SequentialResult [][]float32
@@ -22,7 +22,7 @@ func main() {
 		concurrentResult = matrixMultiplyConcurrent(big_a, big_b, goroutines)
 		elasped := time.Since(start)
 
-		var sumCon float32
+		sumCon = 0
 		for i := 0; i < len(concurrentResult); i++ {
 			sumCon += concurrentResult[i][i]
 		}
@@ -34,8 +34,9 @@ func main() {
 	for i := 0; i < len(SequentialResult); i++ {
 		sumSeq += SequentialResult[i][i]
 	}
-	if sumCon == sumSeq {
-		fmt.Printf("Sequential Result != concurrentResult")
+
+	if sumCon != sumSeq {
+		fmt.Printf("Sequential Result != concurrentResult\n")
 	}
 
 	elasped2 := time.Since(start2)
