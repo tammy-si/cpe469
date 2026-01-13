@@ -32,7 +32,7 @@ func main() {
 	start2 := time.Now()
 	SequentialResult = matrixMultiplySeq(big_a, big_b)
 	for i := 0; i < len(SequentialResult); i++ {
-		sumCon += SequentialResult[i][i]
+		sumSeq += SequentialResult[i][i]
 	}
 	if sumCon == sumSeq {
 		fmt.Printf("Sequential Result != concurrentResult")

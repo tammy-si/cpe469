@@ -1,0 +1,5 @@
+This is a matrix multiplier comparing time it takes between 1-32 go routines
+to then compare how long it takes to complete Sequentially.
+
+Compile :  go build matrix_multiply_acc.go
+Run :  ./matrix_multiply_acc  
