@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -26,10 +27,22 @@ func main() {
 	}
 	text := string(data)
 
-	workers := runtime.NumCPU()
-	count := countConcurrent(text, term, workers)
+	seqStart := time.Now()
+	seqCount := countSequential(text, term)
+	seqElasped := time.Since(seqStart)
 
-	fmt.Printf("Found %q %d times using %d workers.\n", term, count, workers)
+	fmt.Printf("Found %q %d times without go Routines. It took %v.\n", term, seqCount, seqElasped)
+
+	workers := runtime.NumCPU()
+	goStart := time.Now()
+	count := countConcurrent(text, term, workers)
+	goElasped := time.Since(goStart)
+
+	fmt.Printf("Found %q %d times using %d workers. It took %v.\n", term, count, workers, goElasped)
+
+	if seqCount != count {
+		fmt.Printf("Word count without go routines != Word count with go routines")
+	}
 }
 
 func countConcurrent(text, term string, workers int) int {
@@ -87,4 +100,26 @@ func countConcurrent(text, term string, workers int) int {
 		total += c
 	}
 	return total
+}
+
+func countSequential(text, term string) int {
+	if len(term) == 0 || len(term) > len(text) {
+		return 0
+	}
+
+	count := 0
+	for i := 0; i <= len(text) - len(term); i++ {
+		match := true
+		// check to make sure all characters in our text window match term
+		for j := 0; j < len(term); j++ {
+			if text[i+j] != term[j]  {
+				match = false
+				break
+			}
+		}
+		if match {
+			count++
+		}
+	}
+	return count
 }
