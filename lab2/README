@@ -1,0 +1,5 @@
+Tammy Si and Oscar G.
+Week 2 Assignment
+
+In the lab2 directory, you can run "go run ." to run the Search.go . The Search.go has part 1 and 2 of the assignment where it measures the sequential word count and the go routines word counting. 
+For part 4, where it uses the RPC library. You have to "cd server", then in the server folder, you can "go run ." to run the server. Open a new terminal, then navigate into the client folder. Inside the client folder, you can run "go run .", to run the client code. 
