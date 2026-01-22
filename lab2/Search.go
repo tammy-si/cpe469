@@ -81,7 +81,7 @@ func countConcurrent(text, term string, workers int) int {
 			defer wg.Done()
 
 			segment := text[start:endWithOverlap]
-			c := strings.Count(segment, term)
+			c := countSequential(segment, term)
 
 			// avoid double-counting: if we overlapped, we might count matches that start before `end`
 			// This quick fix subtracts matches that are fully contained in the overlap area *before* start
