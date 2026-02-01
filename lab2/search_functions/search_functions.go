@@ -1,6 +1,6 @@
 package search_functions
 
-import(
+import (
 	"sync"
 )
 
@@ -42,9 +42,7 @@ func CountConcurrent(text, term string, workers int) int {
 			segment := text[start:endWithOverlap]
 			c := CountSequential(segment, term)
 
-			// avoid double-counting: if we overlapped, we might count matches that start before `end`
-			// This quick fix subtracts matches that are fully contained in the overlap area *before* start
-			// A more exact method is KMP with "count matches whose start < end".
+			// avoid double-counting.
 			results <- c
 		}(start, end, endWithOverlap)
 	}
@@ -67,11 +65,11 @@ func CountSequential(text, term string) int {
 	}
 
 	count := 0
-	for i := 0; i <= len(text) - len(term); i++ {
+	for i := 0; i <= len(text)-len(term); i++ {
 		match := true
 		// check to make sure all characters in our text window match term
 		for j := 0; j < len(term); j++ {
-			if text[i+j] != term[j]  {
+			if text[i+j] != term[j] {
 				match = false
 				break
 			}
