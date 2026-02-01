@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"lab2/shared"
 	"math/rand"
 	"net/rpc"
 	"os"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
+
+	"./shared"
 )
 
 const (
@@ -19,6 +19,7 @@ const (
 	Z_TIME_MAX = 100
 	Z_TIME_MIN = 10
 )
+
 var self_node shared.Node
 
 // Send the current membership table to a neighboring node with the provided ID
@@ -37,9 +38,9 @@ func calcTime() float64 {
 
 var wg = &sync.WaitGroup{}
 
-func main() {
+func main_client() {
 	rand.Seed(time.Now().UnixNano())
-	Z_TIME := rand.Intn(Z_TIME_MAX - Z_TIME_MIN) + Z_TIME_MIN
+	Z_TIME := rand.Intn(Z_TIME_MAX-Z_TIME_MIN) + Z_TIME_MIN
 
 	// Connect to RPC server
 	server, _ := rpc.DialHTTP("tcp", "localhost:9005")
@@ -100,9 +101,7 @@ func runAfterZ(server *rpc.Client, id int) {
 	//TODO
 }
 
-
-
-func printMembership(m shared.Membership){
+func printMembership(m shared.Membership) {
 	for _, val := range m.Members {
 		status := "is Alive"
 		if !val.Alive {

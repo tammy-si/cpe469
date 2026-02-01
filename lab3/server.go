@@ -2,12 +2,13 @@ package main
 
 import (
 	"io"
-	"lab2/shared"
 	"net/http"
 	"net/rpc"
+
+	"./shared"
 )
 
-func main() {
+func main_server() {
 	// create a Membership list
 	nodes := shared.NewMembership()
 	requests := shared.NewRequests()
