@@ -59,16 +59,38 @@ func NewMembership() *Membership {
 
 // Adds a node to the membership list.
 func (m *Membership) Add(payload Node, reply *Node) error {
-	//TODO
+	// add node to the Members hashmap, key is Node's id
+	m.Members[payload.ID] = payload
+	if (reply != nil) {
+		*reply = payload
+	}
+
+	return nil
 }
 
 // Updates a node in the membership list.
 func (m *Membership) Update(payload Node, reply *Node) error {
-	//TODO
+	_, ok := m.Members[payload.ID]
+	if !ok {
+		return fmt.Errorf("node %d not found", payload.ID)
+	}
+	m.Members[payload.ID] = payload
+	if (reply != nil) {
+		*reply = payload
+	}
+	return nil
 }
 
 // Returns a node with specific ID.
 func (m *Membership) Get(payload int, reply *Node) error {
+	val, ok := m.Members[payload]
+	if !ok {
+		return fmt.Errorf("node %d not found", payload)
+	}
+	if (reply != nil) {
+		*reply = val
+	}
+	return nil
 	//TODO
 }
 
@@ -88,19 +110,25 @@ type Requests struct {
 // Returns a new instance of a Membership (pointer).
 func NewRequests() *Requests {
 	//TODO
+	return &Requests {
+		Pending: make(map[int]Membership),
+	}
 }
 
 // Adds a new message request to the pending list
 func (req *Requests) Add(payload Request, reply *bool) error {
 	//TODO
+	return nil
 }
 
 // Listens to communication from neighboring nodes.
 func (req *Requests) Listen(ID int, reply *Membership) error {
 	//TODO
+	return nil
 }
 
 func combineTables(table1 *Membership, table2 *Membership) *Membership {
 	//TODO
+	return nil
 }
 

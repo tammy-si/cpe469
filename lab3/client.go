@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"./shared"
+	"lab3/shared"
 )
 
 const (
@@ -29,14 +29,21 @@ func sendMessage(server rpc.Client, id int, membership shared.Membership) {
 
 // Read incoming messages from other nodes
 func readMessages(server rpc.Client, id int, membership shared.Membership) *shared.Membership {
+	return nil;
 	//TODO
 }
 
 func calcTime() float64 {
+	return 0.0;
 	//TODO
 }
 
 var wg = &sync.WaitGroup{}
+
+func main() {
+    main_client()
+}
+
 
 func main_client() {
 	rand.Seed(time.Now().UnixNano())
@@ -69,6 +76,23 @@ func main_client() {
 		fmt.Println("Error:2 Membership.Add()", err)
 	} else {
 		fmt.Printf("Success: Node created with id= %d\n", id)
+	}
+
+	// test out the get and the update
+	var fetched_node shared.Node 
+	if err := server.Call("Membership.Get", self_node.ID, &fetched_node); err != nil {
+		fmt.Println("Error fetching node: ", err)
+	} else {
+		fmt.Printf("Fetched node from server: %+v\n", fetched_node)
+	}
+
+	// increment the node's heartbeat to test update
+	self_node.Hbcounter++
+	var updatedNode shared.Node
+	if err := server.Call("Membership.Update", self_node, &updatedNode); err != nil {
+		fmt.Printf("Error fetching node: ", err)
+	} else {
+		fmt.Printf("Updated node on server: %+v\n", updatedNode)
 	}
 
 	neighbors := self_node.InitializeNeighbors(id)

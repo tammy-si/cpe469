@@ -5,8 +5,13 @@ import (
 	"net/http"
 	"net/rpc"
 
-	"./shared"
+	"lab3/shared"
 )
+
+func main() {
+    main_server()
+}
+
 
 func main_server() {
 	// create a Membership list
