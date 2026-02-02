@@ -61,7 +61,7 @@ func NewMembership() *Membership {
 func (m *Membership) Add(payload Node, reply *Node) error {
 	// add node to the Members hashmap, key is Node's id
 	m.Members[payload.ID] = payload
-	if (reply != nil) {
+	if reply != nil {
 		*reply = payload
 	}
 
@@ -75,7 +75,7 @@ func (m *Membership) Update(payload Node, reply *Node) error {
 		return fmt.Errorf("node %d not found", payload.ID)
 	}
 	m.Members[payload.ID] = payload
-	if (reply != nil) {
+	if reply != nil {
 		*reply = payload
 	}
 	return nil
@@ -87,7 +87,7 @@ func (m *Membership) Get(payload int, reply *Node) error {
 	if !ok {
 		return fmt.Errorf("node %d not found", payload)
 	}
-	if (reply != nil) {
+	if reply != nil {
 		*reply = val
 	}
 	return nil
@@ -110,7 +110,7 @@ type Requests struct {
 // Returns a new instance of a Membership (pointer).
 func NewRequests() *Requests {
 	//TODO
-	return &Requests {
+	return &Requests{
 		Pending: make(map[int]Membership),
 	}
 }
@@ -131,4 +131,3 @@ func combineTables(table1 *Membership, table2 *Membership) *Membership {
 	//TODO
 	return nil
 }
-

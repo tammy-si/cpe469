@@ -1,17 +1,16 @@
 package main
 
 import (
+	"fmt"
 	"io"
+	"lab3/shared"
 	"net/http"
 	"net/rpc"
-
-	"lab3/shared"
 )
 
 func main() {
-    main_server()
+	main_server()
 }
-
 
 func main_server() {
 	// create a Membership list
@@ -32,4 +31,6 @@ func main_server() {
 
 	// listen and serve default HTTP server
 	http.ListenAndServe("localhost:9005", nil)
+
+	fmt.Println(nodes, requests)
 }

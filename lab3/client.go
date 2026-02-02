@@ -2,14 +2,13 @@ package main
 
 import (
 	"fmt"
+	"lab3/shared"
 	"math/rand"
 	"net/rpc"
 	"os"
 	"strconv"
 	"sync"
 	"time"
-
-	"lab3/shared"
 )
 
 const (
@@ -29,21 +28,20 @@ func sendMessage(server rpc.Client, id int, membership shared.Membership) {
 
 // Read incoming messages from other nodes
 func readMessages(server rpc.Client, id int, membership shared.Membership) *shared.Membership {
-	return nil;
+	return nil
 	//TODO
 }
 
 func calcTime() float64 {
-	return 0.0;
+	return 0.0
 	//TODO
 }
 
 var wg = &sync.WaitGroup{}
 
 func main() {
-    main_client()
+	main_client()
 }
-
 
 func main_client() {
 	rand.Seed(time.Now().UnixNano())
@@ -79,7 +77,7 @@ func main_client() {
 	}
 
 	// test out the get and the update
-	var fetched_node shared.Node 
+	var fetched_node shared.Node
 	if err := server.Call("Membership.Get", self_node.ID, &fetched_node); err != nil {
 		fmt.Println("Error fetching node: ", err)
 	} else {
@@ -115,14 +113,48 @@ func main_client() {
 
 func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Membership, id int) {
 	//TODO
+	if node.Alive {
+		node.Hbcounter++
+		node.Time = calcTime()
+
+		//
+		(*membership).Members[node.ID] = *node
+
+		var reply shared.Node
+		server.Call("Membership.Update", *node, &reply)
+	}
+
+	time.AfterFunc(time.Second*X_TIME,
+		func() { runAfterX(server, node, membership, id) })
 }
 
 func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Membership, id int) {
 	//TODO
+	if self_node.Alive {
+		sendMessage(*server, neighbors[0], **membership)
+		sendMessage(*server, neighbors[1], **membership)
+
+		*membership = readMessages(*server, id, **membership)
+
+		printMembership(**membership)
+	}
+
+	time.AfterFunc(time.Second*Y_TIME,
+		func() {
+			runAfterY(server, neighbors, membership, id)
+		})
 }
 
 func runAfterZ(server *rpc.Client, id int) {
 	//TODO
+	self_node.Alive = false
+	self_node.Time = calcTime()
+
+	var reply shared.Node
+	if err := server.Call("Membership.Update", self_node, &reply); err != nil {
+		fmt.Println("Error: Membership.Update() on crash", err)
+	}
+	fmt.Println("Node", id, "CRASHED")
 }
 
 func printMembership(m shared.Membership) {
