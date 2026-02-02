@@ -139,14 +139,14 @@ func (req *Requests) Listen(ID int, reply *Membership) error {
 	return nil
 }
 
-func combineTables(table1 *Membership, table2 *Membership) *Membership {
+func CombineTables(table1 *Membership, table2 *Membership) *Membership {
 	result := NewMembership()
 
 	// copy table1's stuff into the new combined membership
 	for id, node := range table1.Members {
 		result.Members[id] = node
 	}
-	
+
 	// now loop through with table2 and combine
 	for id, node2 := range table2.Members {
 		node1, ok := result.Members[id]

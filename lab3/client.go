@@ -24,16 +24,32 @@ var self_node shared.Node
 // Send the current membership table to a neighboring node with the provided ID
 func sendMessage(server rpc.Client, id int, membership shared.Membership) {
 	//TODO
+	mail := shared.Request{
+		ID:    id,
+		Table: membership,
+	}
+	var ok bool
+	if err := server.Call("Requests.Add", mail, &ok); err != nil {
+		fmt.Println("Error: Requests.Add()", err)
+	}
 }
 
 // Read incoming messages from other nodes
 func readMessages(server rpc.Client, id int, membership shared.Membership) *shared.Membership {
-	return nil
+	var incoming shared.Membership
+
+	if err := server.Call("Requests.Listen", id, &incoming); err != nil {
+		fmt.Println("Error: Requests.Add()", err)
+		return &membership
+	} else {
+		merged := shared.CombineTables(&membership, &incoming)
+		return merged
+	}
 	//TODO
 }
 
 func calcTime() float64 {
-	return 0.0
+	return float64(time.Now().UnixNano()) / 1e9
 	//TODO
 }
 
