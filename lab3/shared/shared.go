@@ -117,17 +117,43 @@ func NewRequests() *Requests {
 
 // Adds a new message request to the pending list
 func (req *Requests) Add(payload Request, reply *bool) error {
-	//TODO
+	req.Pending[payload.ID] = payload.Table
+	if reply != nil {
+		*reply = true
+	}
 	return nil
 }
 
 // Listens to communication from neighboring nodes.
 func (req *Requests) Listen(ID int, reply *Membership) error {
-	//TODO
+	// check if there's something pending for that id
+	table, ok := req.Pending[ID]
+	if !ok {
+		// nothing pending so return empty membership
+		*reply = Membership{Members: make(map[int]Node)}
+		return nil
+	}
+	// there is new membership table pending, return it
+	*reply = table
+	delete(req.Pending, ID)
 	return nil
 }
 
 func combineTables(table1 *Membership, table2 *Membership) *Membership {
-	//TODO
-	return nil
+	result := NewMembership()
+
+	// copy table1's stuff into the new combined membership
+	for id, node := range table1.Members {
+		result.Members[id] = node
+	}
+	
+	// now loop through with table2 and combine
+	for id, node2 := range table2.Members {
+		node1, ok := result.Members[id]
+		// if this table2 has new id or updated version of the node
+		if !ok || node2.Hbcounter > node1.Hbcounter {
+			result.Members[id] = node2
+		}
+	}
+	return result
 }

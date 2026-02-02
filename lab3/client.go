@@ -93,6 +93,33 @@ func main_client() {
 		fmt.Printf("Updated node on server: %+v\n", updatedNode)
 	}
 
+	// testing out the request stuff (listen and combineTables)
+	reqs := shared.NewRequests()
+
+	// fake membership for node1
+	m1 := shared.NewMembership()
+	node1 := shared.Node{ID: 1, Hbcounter: 5, Time: 1.0, Alive: true}
+	m1.Add(node1, &node1)
+
+	reqs.Pending[1] = *m1
+
+	var reply shared.Membership
+	err = reqs.Listen(1, &reply)
+	if err != nil {
+		fmt.Println("Listen error: ", err)
+	} else {
+		fmt.Println("Listen returned membership for node 1: ")
+		for _, n := range reply.Members {
+			fmt.Printf("Node %d hb=%d, alive=%v\n", n.ID, n.Hbcounter, n.Alive)
+		}
+	}
+
+	// nothing pending
+	var emptyReply shared.Membership
+	err = reqs.Listen(1, &emptyReply)
+	fmt.Println("Listen returned empty membership when nothing pending:")
+	fmt.Printf("Members map size: %d\n", len(emptyReply.Members))
+
 	neighbors := self_node.InitializeNeighbors(id)
 	fmt.Println("Neighbors:", neighbors)
 
