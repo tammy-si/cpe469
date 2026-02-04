@@ -1,36 +1,30 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"lab3/shared"
+	"log"
 	"net/http"
 	"net/rpc"
 )
 
 func main() {
-	main_server()
-}
-
-func main_server() {
-	// create a Membership list
 	nodes := shared.NewMembership()
 	requests := shared.NewRequests()
 
-	// register nodes with `rpc.DefaultServer`
-	rpc.Register(nodes)
-	rpc.Register(requests)
+	if err := rpc.Register(nodes); err != nil {
+		log.Fatal(err)
+	}
+	if err := rpc.Register(requests); err != nil {
+		log.Fatal(err)
+	}
 
-	// register an HTTP handler for RPC communication
 	rpc.HandleHTTP()
 
-	// sample test endpoint
 	http.HandleFunc("/", func(res http.ResponseWriter, req *http.Request) {
 		io.WriteString(res, "RPC SERVER LIVE!")
 	})
 
-	// listen and serve default HTTP server
-	http.ListenAndServe("localhost:9005", nil)
-
-	fmt.Println(nodes, requests)
+	log.Println("RPC server listening on localhost:9005")
+	log.Fatal(http.ListenAndServe("localhost:9005", nil))
 }

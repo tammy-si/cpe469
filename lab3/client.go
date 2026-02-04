@@ -22,11 +22,11 @@ const (
 var self_node shared.Node
 
 // Send the current membership table to a neighboring node with the provided ID
-func sendMessage(server rpc.Client, id int, membership shared.Membership) {
+func sendMessage(server *rpc.Client, id int, membership *shared.Membership) {
 	//TODO
 	mail := shared.Request{
 		ID:    id,
-		Table: membership,
+		Table: *membership,
 	}
 	var ok bool
 	if err := server.Call("Requests.Add", mail, &ok); err != nil {
@@ -35,14 +35,14 @@ func sendMessage(server rpc.Client, id int, membership shared.Membership) {
 }
 
 // Read incoming messages from other nodes
-func readMessages(server rpc.Client, id int, membership shared.Membership) *shared.Membership {
+func readMessages(server *rpc.Client, id int, membership *shared.Membership) *shared.Membership {
 	var incoming shared.Membership
 
 	if err := server.Call("Requests.Listen", id, &incoming); err != nil {
 		fmt.Println("Error: Requests.Add()", err)
-		return &membership
+		return membership
 	} else {
-		merged := shared.CombineTables(&membership, &incoming)
+		merged := shared.CombineTables(membership, &incoming)
 		return merged
 	}
 	//TODO
@@ -142,9 +142,9 @@ func main_client() {
 	membership := shared.NewMembership()
 	membership.Add(self_node, &self_node)
 
-	sendMessage(*server, neighbors[0], *membership)
+	sendMessage(server, neighbors[0], membership)
 
-	// crashTime := self_node.CrashTime()
+	//crashTime := self_node.CrashTime()
 
 	time.AfterFunc(time.Second*X_TIME, func() { runAfterX(server, &self_node, &membership, id) })
 	time.AfterFunc(time.Second*Y_TIME, func() { runAfterY(server, neighbors, &membership, id) })
@@ -174,10 +174,10 @@ func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Member
 func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Membership, id int) {
 	//TODO
 	if self_node.Alive {
-		sendMessage(*server, neighbors[0], **membership)
-		sendMessage(*server, neighbors[1], **membership)
+		sendMessage(server, neighbors[0], *membership)
+		sendMessage(server, neighbors[1], *membership)
 
-		*membership = readMessages(*server, id, **membership)
+		*membership = readMessages(server, id, *membership)
 
 		printMembership(**membership)
 	}
