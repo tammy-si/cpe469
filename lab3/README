@@ -1,3 +1,4 @@
+Tammy Si and Oscar Gomez
 To build client:
 go build client.go
 
