@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"sort"
 )
 
 const (
@@ -20,6 +21,7 @@ const (
 )
 
 var self_node shared.Node
+var membershipMu sync.Mutex
 
 // Send the current membership table to a neighboring node with the provided ID
 func sendMessage(server *rpc.Client, id int, membership *shared.Membership) {
@@ -161,7 +163,9 @@ func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Member
 		node.Time = calcTime()
 
 		//
+		membershipMu.Lock()
 		(*membership).Members[node.ID] = *node
+		membershipMu.Unlock()
 
 		var reply shared.Node
 		server.Call("Membership.Update", *node, &reply)
@@ -179,7 +183,9 @@ func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Members
 
 		*membership = readMessages(server, id, *membership)
 
+		membershipMu.Lock()
 		printMembership(**membership)
+		membershipMu.Unlock()
 	}
 
 	time.AfterFunc(time.Second*Y_TIME,
@@ -201,7 +207,16 @@ func runAfterZ(server *rpc.Client, id int) {
 }
 
 func printMembership(m shared.Membership) {
-	for _, val := range m.Members {
+
+	ids := make([]int, 0, len(m.Members))
+	for id := range m.Members {
+		ids = append(ids, id)
+	}
+
+	sort.Ints(ids)
+	fmt.Println("<<<<<< MEMBERSHIP TABLE >>>>>>")
+	for _, id := range ids {
+		val := m.Members[id]
 		status := "is Alive"
 		if !val.Alive {
 			status = "is Dead"

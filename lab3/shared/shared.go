@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"time"
+	"sync"
 )
 
 const (
@@ -47,6 +48,7 @@ func RandInt() int {
 
 // Membership struct represents participanting nodes
 type Membership struct {
+	mu      sync.Mutex
 	Members map[int]Node
 }
 
@@ -59,6 +61,9 @@ func NewMembership() *Membership {
 
 // Adds a node to the membership list.
 func (m *Membership) Add(payload Node, reply *Node) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	// add node to the Members hashmap, key is Node's id
 	m.Members[payload.ID] = payload
 	if reply != nil {
@@ -70,6 +75,9 @@ func (m *Membership) Add(payload Node, reply *Node) error {
 
 // Updates a node in the membership list.
 func (m *Membership) Update(payload Node, reply *Node) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	_, ok := m.Members[payload.ID]
 	if !ok {
 		return fmt.Errorf("node %d not found", payload.ID)
@@ -83,6 +91,9 @@ func (m *Membership) Update(payload Node, reply *Node) error {
 
 // Returns a node with specific ID.
 func (m *Membership) Get(payload int, reply *Node) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	val, ok := m.Members[payload]
 	if !ok {
 		return fmt.Errorf("node %d not found", payload)
@@ -104,6 +115,7 @@ type Request struct {
 
 // Requests struct represents pending message requests
 type Requests struct {
+	mu      sync.Mutex
 	Pending map[int]Membership
 }
 
@@ -117,6 +129,9 @@ func NewRequests() *Requests {
 
 // Adds a new message request to the pending list
 func (req *Requests) Add(payload Request, reply *bool) error {
+	req.mu.Lock()
+	defer req.mu.Unlock()
+
 	req.Pending[payload.ID] = payload.Table
 	if reply != nil {
 		*reply = true
@@ -126,6 +141,9 @@ func (req *Requests) Add(payload Request, reply *bool) error {
 
 // Listens to communication from neighboring nodes.
 func (req *Requests) Listen(ID int, reply *Membership) error {
+	req.mu.Lock()
+	defer req.mu.Unlock()
+
 	// check if there's something pending for that id
 	table, ok := req.Pending[ID]
 	if !ok {
@@ -142,11 +160,14 @@ func (req *Requests) Listen(ID int, reply *Membership) error {
 func CombineTables(table1 *Membership, table2 *Membership) *Membership {
 	result := NewMembership()
 
+	table1.mu.Lock()
 	// copy table1's stuff into the new combined membership
 	for id, node := range table1.Members {
 		result.Members[id] = node
 	}
+    table1.mu.Unlock()
 
+	table2.mu.Lock()
 	// now loop through with table2 and combine
 	for id, node2 := range table2.Members {
 		node1, ok := result.Members[id]
@@ -155,5 +176,7 @@ func CombineTables(table1 *Membership, table2 *Membership) *Membership {
 			result.Members[id] = node2
 		}
 	}
+	table2.mu.Unlock()
+	
 	return result
 }
