@@ -18,6 +18,8 @@ const (
 	Y_TIME     = 2
 	Z_TIME_MAX = 100
 	Z_TIME_MIN = 10
+	ELECTION_MIN = 150		// the node's timeout Y will be between the election min and max
+	ELECTION_MAX   = 300
 )
 
 var self_node shared.Node

@@ -207,6 +207,7 @@ type Votes struct {
 	mu	sync.Mutex
 	Requests map[int]VoteRequest		// candidateID -> their vote request. Store when candidate asks for votes
 	Responses map[int][]VoteResponse	// candidatID -> all the votes that candidate received
+	Heartbeats map[int]int				// nodeID -> term of last heartbeat sent
 }
 
 func NewVotes() *Votes {
@@ -275,6 +276,43 @@ func (v *Votes) CollectVotes(candidateID int, votes* []VoteResponse) error {
 	} else {
 		// no votes received yet
 		*votes = []VoteResponse{}
+	}
+	return nil
+}
+
+// SendHeartbeat - Called by the leader to send heartbeat to follows, stops followers from starting elections
+func (v *Votes) SendHeartbeat(term int, reply *bool) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	// send heartbeat to all nodes 1 - MAXHEARTBEATS
+	// each node will chekc their own id to if there's a heartbeat for them
+	for i := 1; i <= MAX_NODES; i++ {
+		v.Heartbeats[i] = term
+	}
+
+	if reply != nil {
+		*reply = true
+	}
+
+	return nil
+}
+
+// CheckHeartbeat - called by followers to check for leaders heartbeat
+// if yes, they reset their election timer, if no they might become candidate
+func (v *Votes) CheckHeartbeat(nodeID int, term *int) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	// check if there's a heartbeat for this node
+	if t, ok := v.Heartbeats[nodeID]; ok {
+		// return term from the heartbeat
+		*term = t		
+		// clear it (so it's not used twice) 
+		delete(v.Heartbeats, nodeID)	
+	} else {
+		// no heartbeat found, return -1
+		*term = -1
 	}
 	return nil
 }
