@@ -9,3 +9,8 @@ Then in one terminal run ./server
 
 In another terminal run ./client <id>
 
+ID 1-8
+
+NOTE: 
+To test out the node functionality, you can kill off the elected leader and the nodes should elect a new leader. Sometimes the membership table on a node can be stale though, atleast for the info on who the new leader is. Then information that can be trusted for who the new leader is going ot be a print line like  "Node 4 says: I am the LEADER for term 5".
+We also left in stuff from assignment 3 with the membership tables and the nodes crashing after a certain amount of time. 

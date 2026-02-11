@@ -413,6 +413,7 @@ func sendHeartbeat(server *rpc.Client, id int) {
 	if !self_node.Alive || self_node.State != 2 {
 		return
 	}
+	fmt.Printf("Node %d says: I am the LEADER for term %d\n", id, self_node.CurrentTerm)
 
 	var ok bool
 	server.Call("Votes.SendHeartbeat", self_node.CurrentTerm, &ok)
