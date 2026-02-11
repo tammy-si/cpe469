@@ -156,7 +156,7 @@ func main_client() {
 	// to start election timer
 	scheduleElectionTimeout(server, &membership, id)
 
-	time.AfterFunc(time.Second*X_TIME, func() { runAfterX(server, &self_node, &membership, id) })
+	time.AfterFunc(X_TIME * time.Millisecond, func() { runAfterX(server, &self_node, &membership, id) })
 	time.AfterFunc(time.Second*Y_TIME, func() { runAfterY(server, neighbors, &membership, id) })
 	time.AfterFunc(time.Second*time.Duration(Z_TIME), func() { runAfterZ(server, id) })
 
@@ -185,7 +185,7 @@ func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Member
 		checkForHeartbeat(server, membership, id)
 	}
 
-	time.AfterFunc(time.Second*X_TIME,
+	time.AfterFunc(X_TIME * time.Millisecond,
 		func() { runAfterX(server, node, membership, id) })
 }
 
@@ -259,6 +259,10 @@ func scheduleElectionTimeout(server *rpc.Client, membership **shared.Membership,
 	if !self_node.Alive || self_node.State == 2{
 		return
 	}
+
+	if electionTimer != nil {
+        electionTimer.Stop()
+    }
 
 	// each node needs a different random timeout so that there are no ties
 	timeout := time.Duration(ELECTION_MIN+rand.Intn(ELECTION_MAX-ELECTION_MIN)) * time.Millisecond
@@ -359,7 +363,7 @@ func checkForVoteRequests(server *rpc.Client, membership **shared.Membership, id
 	server.Call("Votes.GetVoteRequest", id, &voteReq)
 
 	// no vote requests found = -1
-	if voteReq.CandidateID != -1 {
+	if voteReq.CandidateID != -1 || voteReq.CandidateID == self_node.ID{
 		// there is a vote request
 		grantVote := false
 		if voteReq.Term > self_node.CurrentTerm {
@@ -368,10 +372,7 @@ func checkForVoteRequests(server *rpc.Client, membership **shared.Membership, id
 			self_node.VotedFor = -1
 
 			//reset election timer
-			if electionTimer != nil {
-				electionTimer.Stop()
-			}
-			scheduleElectionTimeout(server, membership, id)
+			resetElectionTimer(server, membership, id)
 		}
 		// if haven't voted or new term
 		if voteReq.Term == self_node.CurrentTerm &&
@@ -381,6 +382,11 @@ func checkForVoteRequests(server *rpc.Client, membership **shared.Membership, id
 
 			fmt.Printf("Node %d VOTED FOR candidate %d in term %d\n",
 						id, voteReq.CandidateID, voteReq.Term)
+			// If I voted for someone else, reset my election timer
+			if voteReq.CandidateID != self_node.ID {
+				resetElectionTimer(server, membership, id)
+			}
+
 		} else {
 			fmt.Printf("Node %d DENIED vote to candidate %d (already voted for %d in term %d)\n",
 			id, voteReq.CandidateID, self_node.VotedFor, self_node.CurrentTerm)
@@ -420,31 +426,37 @@ func sendHeartbeat(server *rpc.Client, id int) {
 // followers call this to check if leader sent a heartbeat
 // restart the electionTimer if heartbeat seen in time
 func checkForHeartbeat(server *rpc.Client, membership **shared.Membership, id int) {
-	if self_node.State == 0 && self_node.Alive {
-		var term int
-		server.Call("Votes.CheckHeartbeat", id, &term)
-
-		if term != -1 {
-			// there was a heart
-
-			// restart the electionTimer
-			if electionTimer != nil {
-				electionTimer.Stop()
-			}
-
-			scheduleElectionTimeout(server, membership, id)
-
-			// update our term if our term is out of date
-			if term > self_node.CurrentTerm {
-				self_node.CurrentTerm = term
-				self_node.VotedFor = -1
-
-				// reset election timer
-				if electionTimer != nil {
-					electionTimer.Stop()
-				}
-				scheduleElectionTimeout(server, membership, id)
-			}
-		}
+	if !self_node.Alive {
+		return
 	}
+	var term int
+	server.Call("Votes.CheckHeartbeat", id, &term)
+
+	if term == -1 {
+		// don't reset the election timer
+		return
+	}
+
+	if self_node.State == 2 {
+		// leader does not reset timer
+		return
+	}
+
+	if self_node.State != 0 {
+		self_node.State = 0 // step down if we were candidate
+	}
+
+	if term > self_node.CurrentTerm {
+		self_node.CurrentTerm = term
+		self_node.VotedFor = -1
+	}
+	resetElectionTimer(server, membership, id)
+
+}
+
+func resetElectionTimer(server *rpc.Client, membership **shared.Membership, id int) {
+	if electionTimer != nil {
+		electionTimer.Stop()
+	}
+	scheduleElectionTimeout(server, membership, id)
 }
