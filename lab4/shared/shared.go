@@ -214,6 +214,7 @@ func NewVotes() *Votes {
 	return &Votes{
 		Requests: make(map[int]VoteRequest),
 		Responses: make(map[int][]VoteResponse),
+		Heartbeats: make(map[int]int),
 	}
 }
 
@@ -277,6 +278,7 @@ func (v *Votes) CollectVotes(candidateID int, votes* []VoteResponse) error {
 		// no votes received yet
 		*votes = []VoteResponse{}
 	}
+	delete(v.Requests, candidateID)
 	return nil
 }
 
