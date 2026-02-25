@@ -1,0 +1,11 @@
+Tammy Si and Oscar Gomez
+To build client:
+go build client.go
+
+To build server:
+go build server.go
+
+Then in one terminal run ./server
+
+In another terminal run ./client <id>
+
