@@ -11,6 +11,7 @@ import (
 	"net/rpc"
 	"sort"
 	"sync"
+	"time"
 )
 
 type Point struct {
@@ -144,6 +145,21 @@ func (kv *KV) Put(args *shared.PutArgs, reply *shared.PutReply) error {
 	}
 
 	kv.store[owner][args.Key] = args.Value
+
+	// generate a writeID to check track of a write
+	writeID := fmt.Sprintf("%s-%d", args.Key, time.Now().UnixNano())
+
+	// for the consensus for the write
+	req := shared.WriteRequest{WriteID: writeID,Key: args.Key, Value: args.Value}
+    var ok2 bool
+    consensus.ProposeWrite(req, &ok2) 
+
+	// after ACK_WAIT_TIME, check if enough nodes acked to declare the write a success
+    go func() {
+        time.Sleep(shared.ACK_WAIT_TIME * time.Millisecond)
+        countAcksAndDecide(writeID)  
+    }()
+
 	return nil
 }
 
@@ -155,9 +171,40 @@ func NewKV(vnodes int) *KV {
 	}
 }
 
+// checking if the majority out of the replicas wrote.
+func countAcksAndDecide(writeID string) {
+	var acks []shared.WriteAck
+	consensus.CollectAcks(writeID, &acks)  
+
+	ackCount := 0
+	for _, ack := range acks {
+		if ack.Stored && ack.WriteID == writeID {
+			ackCount++
+		}
+	}
+
+	var key string
+	if len(acks) > 0 {
+		key = acks[0].Key
+	} else {
+		key = "unknown"
+	}
+
+	// the write required to say succesful write (the majority of replicas)?
+	W := 2
+	if ackCount >= W {
+        fmt.Printf("Write SUCCEEDED for key=%s got %d acks\n", key, ackCount)
+    } else {
+		fmt.Printf("Write FAILED for key=%s only %d acks\n", key, ackCount)
+	}
+}
+
+var consensus = shared.NewQuorumTracker()
+
 func main() {
 	nodes := shared.NewMembership()
 	requests := shared.NewRequests()
+
 	kv := NewKV(4) // 4 virtual nodes per server
 
 	// Initialize the 5 servers on the ring (names can be whatever you want)
@@ -171,6 +218,9 @@ func main() {
 		log.Fatal(err)
 	}
 	if err := rpc.Register(requests); err != nil {
+		log.Fatal(err)
+	}
+	if err := rpc.Register(consensus); err != nil {
 		log.Fatal(err)
 	}
 	if err := rpc.Register(kv); err != nil {

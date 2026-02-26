@@ -23,6 +23,8 @@ const (
 
 var self_node shared.Node
 var membershipMu sync.Mutex
+// remeber that we already voted for that writeId
+var votedWrites = make(map[string]bool)
 
 // Send the current membership table to a neighboring node with the provided ID
 func sendMessage(server *rpc.Client, id int, membership *shared.Membership) {
@@ -115,6 +117,7 @@ func dynamoDemo() {
 	fmt.Println("=== Initial placement (after inserts) ===")
 	for _, kv := range inserts {
 		put(server, kv.k, kv.v)
+		time.Sleep(500 * time.Millisecond)
 		fmt.Printf("%s -> %s\n", kv.k, getOwner(server, kv.k))
 	}
 
@@ -217,6 +220,8 @@ func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Member
 
 		var reply shared.Node
 		server.Call("Membership.Update", *node, &reply)
+
+		checkForPendingWrites(server, id)
 	}
 
 	time.AfterFunc(time.Second*X_TIME,
@@ -269,4 +274,38 @@ func printMembership(m shared.Membership) {
 		fmt.Printf("Node %d has hb %d, time %.1f and %s\n", val.ID, val.Hbcounter, val.Time, status)
 	}
 	fmt.Println("")
+}
+
+/* -------- For consensus kinda taken from Raft Assigment ---------- */
+
+// checkForPendingWrites - called every second to check if any candidates are asking for votes
+// if there s vote request, vote yes or no
+func checkForPendingWrites(server *rpc.Client, id int) {
+	if !self_node.Alive {
+		return
+	}
+
+	var writeReq shared.WriteRequest
+	server.Call("QuorumTracker.GetWriteRequest", id, &writeReq)
+
+	if writeReq.Key == "" {
+        return  // nothing pending
+    }
+	if votedWrites[writeReq.WriteID] {
+		return
+	}
+
+	fmt.Printf("Node %d storing key=%s value=%s\n", id, writeReq.Key, writeReq.Value)
+
+	ack := shared.WriteAck{
+        NodeID: id,
+		WriteID: writeReq.WriteID,
+        Key:    writeReq.Key,
+        Value:  writeReq.Value,
+        Stored: true,
+    }
+    var ok bool
+    server.Call("QuorumTracker.AckWrite", ack, &ok)
+	votedWrites[writeReq.WriteID] = true
+
 }

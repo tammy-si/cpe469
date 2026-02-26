@@ -9,6 +9,7 @@ import (
 
 const (
 	MAX_NODES = 8
+	ACK_WAIT_TIME = 300
 )
 
 // Node struct represents a computing node.
@@ -213,4 +214,102 @@ type OwnerArgs struct {
 }
 type OwnerReply struct {
 	Server string
+}
+
+/* ------ STUFF FOR RAFT VOTING -------- */
+
+// Vote Request for Raft election
+// represents a candidation asking for QuorumTracker
+type WriteRequest struct {
+	WriteID string
+	Key string 	// which node is asking for QuorumTracker
+	Value		string 	// which election value this is for
+}
+
+// WriteAck represents one node's vote (Yes or No) for a candidate
+// each node that sees a vote requests creates one of these to say yes or no
+type WriteAck struct {
+	NodeID	int		// which node is casting the vote
+	WriteID string
+	Key    string // who they're voting for
+	Value  string 	// which value they're voting in
+	Stored bool	// true = yes, false = no
+}
+
+type QuorumTracker struct {
+	mu	sync.Mutex
+	Requests map[string]WriteRequest		// key -> their vote request. Store when candidate asks for QuorumTracker
+	Responses map[string][]WriteAck	// candidatID -> all the QuorumTracker that candidate received
+}
+
+func NewQuorumTracker() *QuorumTracker {
+	return &QuorumTracker{
+		Requests: make(map[string]WriteRequest),
+		Responses: make(map[string][]WriteAck),
+	}
+}
+
+// ProposeWrite is called by a candidate to post their vote request on the server
+func (v *QuorumTracker) ProposeWrite(req WriteRequest, reply *bool) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	// store vote request so others to see it
+	// key is candidate id
+	v.Requests[req.WriteID] = req
+	if reply != nil {
+		*reply = true
+	}
+	return nil
+}
+
+// GetWriteRequest - called by nodes to check if anyone's asking for QuorumTracker
+// checks to see if there's election happening
+func (v *QuorumTracker) GetWriteRequest(NodeID int, req *WriteRequest) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	// look through all the pending vote requests
+	for _, voteReq := range v.Requests {
+		*req = voteReq
+		return nil
+	}
+
+	// no vote requests found
+	req.Key = ""	// empty to say no request to write yet 
+	return nil
+}
+
+// AckWrite - called by a node to submit their vote for a candidate
+func (v *QuorumTracker) AckWrite(vote WriteAck, reply *bool) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	// find which candidate this vote is for by matching the value
+	id := vote.WriteID
+	v.Responses[id] = append(v.Responses[id], vote)
+
+	if reply != nil {
+		*reply = true
+	}
+
+	return nil
+}
+
+// CollectQuorumTracker - called by a candidate to retrieve all QuorumTracker cast for them
+func (v *QuorumTracker) CollectAcks(key string, QuorumTracker* []WriteAck) error {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	if v.Responses[key] != nil {
+		// return all the QuorumTracker for this candidate
+		*QuorumTracker = v.Responses[key]
+		// clear out the candidates vote responses, as they've been counted
+		delete(v.Responses, key)
+		delete(v.Requests, key)
+	} else {
+		// no QuorumTracker received yet
+		*QuorumTracker = []WriteAck{}
+	}
+	delete(v.Requests, key)
+	return nil
 }
