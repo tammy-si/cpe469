@@ -94,7 +94,6 @@ func put(server *rpc.Client, key string, val string) {
 	}
 }
 
-// This prints exactly what your assignment asks for
 func dynamoDemo() {
 	server, err := rpc.DialHTTP("tcp", "localhost:9005")
 	if err != nil {
@@ -139,7 +138,7 @@ func main() {
 	main_client()
 }
 
-// -------------------- Your existing gossip client --------------------
+// -------------------- gossip client --------------------
 
 func main_client() {
 	rand.Seed(time.Now().UnixNano())
