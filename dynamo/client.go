@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"lab3/shared"
+	"log"
 	"math/rand"
 	"net/rpc"
 	"os"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
-	"sort"
-	"log"
 )
 
 const (
@@ -26,7 +26,6 @@ var membershipMu sync.Mutex
 
 // Send the current membership table to a neighboring node with the provided ID
 func sendMessage(server *rpc.Client, id int, membership *shared.Membership) {
-	//TODO
 	mail := shared.Request{
 		ID:    id,
 		Table: *membership,
@@ -42,25 +41,105 @@ func readMessages(server *rpc.Client, id int, membership *shared.Membership) *sh
 	var incoming shared.Membership
 
 	if err := server.Call("Requests.Listen", id, &incoming); err != nil {
-		fmt.Println("Error: Requests.Add()", err)
+		fmt.Println("Error: Requests.Listen()", err)
 		return membership
-	} else {
-		merged := shared.CombineTables(membership, &incoming)
-		return merged
 	}
-	//TODO
+	merged := shared.CombineTables(membership, &incoming)
+	return merged
 }
 
 func calcTime() float64 {
 	return float64(time.Now().UnixNano()) / 1e9
-	//TODO
 }
 
 var wg = &sync.WaitGroup{}
 
+// -------------------- Dynamo DEMO helpers --------------------
+
+func getOwner(server *rpc.Client, key string) string {
+	args := shared.OwnerArgs{Key: key}
+	reply := shared.OwnerReply{}
+	err := server.Call("KV.GetOwner", &args, &reply)
+	if err != nil {
+		log.Fatal("KV.GetOwner error:", err)
+	}
+	return reply.Server
+}
+
+func deleteNode(server *rpc.Client, serverName string) {
+	args := shared.DeleteNodeArgs{Server: serverName}
+	reply := shared.DeleteNodeReply{}
+	err := server.Call("KV.DeleteNode", &args, &reply)
+	if err != nil {
+		log.Fatal("KV.DeleteNode error:", err)
+	}
+}
+
+func get(server *rpc.Client, key string) string {
+	args := shared.GetArgs{Key: key}
+	reply := shared.GetReply{}
+	err := server.Call("KV.Get", &args, &reply)
+	if err != nil {
+		log.Fatal("KV.Get error:", err)
+	}
+	return reply.Value
+}
+
+func put(server *rpc.Client, key string, val string) {
+	args := shared.PutArgs{Key: key, Value: val}
+	reply := shared.PutReply{}
+	err := server.Call("KV.Put", &args, &reply)
+	if err != nil {
+		log.Fatal("KV.Put error:", err)
+	}
+}
+
+// This prints exactly what your assignment asks for
+func dynamoDemo() {
+	server, err := rpc.DialHTTP("tcp", "localhost:9005")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Insert required key-values
+	inserts := []struct {
+		k string
+		v string
+	}{
+		{"Maria", "100"},
+		{"John", "20"},
+		{"Anna", "40"},
+		{"Tim", "100"},
+		{"Alex", "10"},
+	}
+
+	fmt.Println("=== Initial placement (after inserts) ===")
+	for _, kv := range inserts {
+		put(server, kv.k, kv.v)
+		fmt.Printf("%s -> %s\n", kv.k, getOwner(server, kv.k))
+	}
+
+	fmt.Println("\n=== After Server2 goes down ===")
+	deleteNode(server, "Server2")
+
+	keys2 := []string{"Anna", "Maria", "Lauren", "John", "Thomas"}
+	for _, k := range keys2 {
+		fmt.Printf("%s -> %s\n", k, getOwner(server, k))
+	}
+}
+
+// -------------------- Main --------------------
+
 func main() {
+	args := os.Args[1:]
+	if len(args) > 0 && args[0] == "demo" {
+		dynamoDemo()
+		return
+	}
 	main_client()
 }
+
+// -------------------- Your existing gossip client --------------------
 
 func main_client() {
 	rand.Seed(time.Now().UnixNano())
@@ -90,7 +169,7 @@ func main_client() {
 
 	// Add node with input ID
 	if err := server.Call("Membership.Add", self_node, &self_node_response); err != nil {
-		fmt.Println("Error:2 Membership.Add()", err)
+		fmt.Println("Error: Membership.Add()", err)
 	} else {
 		fmt.Printf("Success: Node created with id= %d\n", id)
 	}
@@ -107,37 +186,10 @@ func main_client() {
 	self_node.Hbcounter++
 	var updatedNode shared.Node
 	if err := server.Call("Membership.Update", self_node, &updatedNode); err != nil {
-		fmt.Printf("Error fetching node: ", err)
+		fmt.Printf("Error updating node: %v\n", err)
 	} else {
 		fmt.Printf("Updated node on server: %+v\n", updatedNode)
 	}
-
-	// testing out the request stuff (listen and combineTables)
-	reqs := shared.NewRequests()
-
-	// fake membership for node1
-	m1 := shared.NewMembership()
-	node1 := shared.Node{ID: 1, Hbcounter: 5, Time: 1.0, Alive: true}
-	m1.Add(node1, &node1)
-
-	reqs.Pending[1] = *m1
-
-	var reply shared.Membership
-	err = reqs.Listen(1, &reply)
-	if err != nil {
-		fmt.Println("Listen error: ", err)
-	} else {
-		fmt.Println("Listen returned membership for node 1: ")
-		for _, n := range reply.Members {
-			fmt.Printf("Node %d hb=%d, alive=%v\n", n.ID, n.Hbcounter, n.Alive)
-		}
-	}
-
-	// nothing pending
-	var emptyReply shared.Membership
-	err = reqs.Listen(1, &emptyReply)
-	fmt.Println("Listen returned empty membership when nothing pending:")
-	fmt.Printf("Members map size: %d\n", len(emptyReply.Members))
 
 	neighbors := self_node.InitializeNeighbors(id)
 	fmt.Println("Neighbors:", neighbors)
@@ -145,25 +197,21 @@ func main_client() {
 	membership := shared.NewMembership()
 	membership.Add(self_node, &self_node)
 
-	sendMessage(server, neighbors[0], membership)
-
-	//crashTime := self_node.CrashTime()
-
 	time.AfterFunc(time.Second*X_TIME, func() { runAfterX(server, &self_node, &membership, id) })
 	time.AfterFunc(time.Second*Y_TIME, func() { runAfterY(server, neighbors, &membership, id) })
-	time.AfterFunc(time.Second*time.Duration(Z_TIME), func() { runAfterZ(server, id) })
+
+	// Disable random crash for Dynamo assignment (keep if you want for gossip lab)
+	// time.AfterFunc(time.Second*time.Duration(Z_TIME), func() { runAfterZ(server, id) })
 
 	wg.Add(1)
 	wg.Wait()
 }
 
 func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Membership, id int) {
-	//TODO
 	if node.Alive {
 		node.Hbcounter++
 		node.Time = calcTime()
 
-		//
 		membershipMu.Lock()
 		(*membership).Members[node.ID] = *node
 		membershipMu.Unlock()
@@ -177,7 +225,6 @@ func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Member
 }
 
 func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Membership, id int) {
-	//TODO
 	if self_node.Alive {
 		sendMessage(server, neighbors[0], *membership)
 		sendMessage(server, neighbors[1], *membership)
@@ -196,7 +243,6 @@ func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Members
 }
 
 func runAfterZ(server *rpc.Client, id int) {
-	//TODO
 	self_node.Alive = false
 	self_node.Time = calcTime()
 
@@ -208,7 +254,6 @@ func runAfterZ(server *rpc.Client, id int) {
 }
 
 func printMembership(m shared.Membership) {
-
 	ids := make([]int, 0, len(m.Members))
 	for id := range m.Members {
 		ids = append(ids, id)
@@ -225,23 +270,4 @@ func printMembership(m shared.Membership) {
 		fmt.Printf("Node %d has hb %d, time %.1f and %s\n", val.ID, val.Hbcounter, val.Time, status)
 	}
 	fmt.Println("")
-}
-
-func get(server *rpc.Client, key string) string {
-	args := shared.GetArgs { key }
-	reply := shared.GetReply{}
-	err := server.Call("KV.Get", &args, &reply)
-	if err != nil { 
-		log.Fatal("error:", err)
-	}
-	return reply.Value
-}
-
-func put(server *rpc.Client, key string, val string) {
-	args := shared.PutArgs { key, val }
-	reply := shared.PutReply{}
-	err := server.Call("KV.Put", &args, &reply)
-	if err != nil {
-		log.Fatal("error:", err)
-	}
 }

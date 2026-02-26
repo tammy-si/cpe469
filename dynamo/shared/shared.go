@@ -3,8 +3,8 @@ package shared
 import (
 	"fmt"
 	"math/rand"
-	"time"
 	"sync"
+	"time"
 )
 
 const (
@@ -165,7 +165,7 @@ func CombineTables(table1 *Membership, table2 *Membership) *Membership {
 	for id, node := range table1.Members {
 		result.Members[id] = node
 	}
-    table1.mu.Unlock()
+	table1.mu.Unlock()
 
 	table2.mu.Lock()
 	// now loop through with table2 and combine
@@ -177,15 +177,13 @@ func CombineTables(table1 *Membership, table2 *Membership) *Membership {
 		}
 	}
 	table2.mu.Unlock()
-	
+
 	return result
 }
 
-//
 // Common RPC request/reply definitions
-//
 type PutArgs struct {
-	Key string
+	Key   string
 	Value string
 }
 
@@ -198,4 +196,21 @@ type GetArgs struct {
 
 type GetReply struct {
 	Value string
+}
+
+type AddNodeArgs struct {
+	Server string
+}
+type AddNodeReply struct{}
+
+type DeleteNodeArgs struct {
+	Server string
+}
+type DeleteNodeReply struct{}
+
+type OwnerArgs struct {
+	Key string
+}
+type OwnerReply struct {
+	Server string
 }
