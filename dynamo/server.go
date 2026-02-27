@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+const N_REPLICAS = 3
+
 type Point struct {
 	pos    uint32
 	server string
@@ -139,13 +141,17 @@ func (kv *KV) Put(args *shared.PutArgs, reply *shared.PutReply) error {
 	kv.mu.Lock()
 	defer kv.mu.Unlock()
 
-	owner, ok := kv.ownerForKeyInternal(args.Key)
-	if !ok {
-		return fmt.Errorf("no servers in ring")
+	// write to all the replicas
+	replicas := kv.preferenceListInternal(args.Key)
+    fmt.Printf("Replicating key=%s to: %v\n", args.Key, replicas)
+
+	// write to all N replicas
+	for _, serverName := range replicas {
+		if kv.store[serverName] == nil {
+			kv.store[serverName] = make(map[string]string)
+		}
+		kv.store[serverName][args.Key] = args.Value
 	}
-
-	kv.store[owner][args.Key] = args.Value
-
 	// generate a writeID to check track of a write
 	writeID := fmt.Sprintf("%s-%d", args.Key, time.Now().UnixNano())
 
@@ -236,3 +242,30 @@ func main() {
 	log.Println("RPC server listening on localhost:9005")
 	log.Fatal(http.ListenAndServe("localhost:9005", nil))
 }
+
+func (kv *KV) preferenceListInternal(key string) []string {
+	if len(kv.ring) == 0 {
+		return []string{}
+	}
+
+	h := hashToUint32(key)
+	idx := sort.Search(len(kv.ring), func(i int) bool {
+		return kv.ring[i].pos >= h
+	})
+	if idx == len(kv.ring) {
+		idx = 0
+	}
+
+	seen := map[string]bool{}
+	list := []string{}
+
+	for i := 0; i < len(kv.ring) && len(list) < N_REPLICAS; i++ {
+		serverName := kv.ring[(idx + i) % len(kv.ring)].server
+		if !seen[serverName] {
+			seen[serverName] = true
+			list = append(list, serverName)
+		}
+	}
+	return list
+}
+ 
