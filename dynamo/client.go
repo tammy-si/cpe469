@@ -19,6 +19,7 @@ const (
 	Y_TIME     = 2
 	Z_TIME_MAX = 100
 	Z_TIME_MIN = 10
+	FAILURE_TIMEOUT = 20 // seconds without heartbeat
 )
 
 var self_node shared.Node
@@ -236,10 +237,15 @@ func runAfterX(server *rpc.Client, node *shared.Node, membership **shared.Member
 
 func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Membership, id int) {
 	if self_node.Alive {
+		// pick fresh random neighbors each round to gossip to
+        neighbors = self_node.InitializeNeighbors(id)
+
 		sendMessage(server, neighbors[0], *membership)
 		sendMessage(server, neighbors[1], *membership)
 
 		*membership = readMessages(server, id, *membership)
+
+		checkForFailures(server, *membership);
 
 		membershipMu.Lock()
 		printMembership(**membership)
@@ -319,4 +325,26 @@ func checkForPendingWrites(server *rpc.Client, id int) {
     server.Call("QuorumTracker.AckWrite", ack, &ok)
 	votedWrites[writeReq.WriteID] = true
 
+}
+
+func checkForFailures(server *rpc.Client, membership *shared.Membership) {
+	now := calcTime()
+
+	membershipMu.Lock()
+    defer membershipMu.Unlock()
+
+	for id, node := range membership.Members {
+		if id == self_node.ID {
+			continue;
+		}
+		if node.Alive && (now - node.Time) > FAILURE_TIMEOUT {
+			fmt.Printf("Node %d suspected FAILED (last seen %.1fs ago)\n", id, now-node.Time)
+			membership.Members[id] = shared.Node {
+				ID: id,
+				Hbcounter: node.Hbcounter,
+				Time: node.Time,
+				Alive: false,
+			}
+		}
+	}
 }

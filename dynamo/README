@@ -8,4 +8,7 @@ go build server.go
 Then in one terminal run ./server
 
 In another terminal run ./client <id>
+In demo use id 1-8, one for each terminal
+
+Then to run the demo for dynamo use go run client.go demo
 
