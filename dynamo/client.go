@@ -121,8 +121,8 @@ func dynamoDemo() {
 		fmt.Printf("%s -> %s\n", kv.k, getOwner(server, kv.k))
 	}
 
-	fmt.Println("\n=== After Server2 goes down ===")
-	deleteNode(server, "Server2")
+	fmt.Println("\n=== After Node6 goes down ===")
+	deleteNode(server, "Node6")
 
 	keys2 := []string{"Anna", "Maria", "Lauren", "John", "Thomas"}
 	for _, k := range keys2 {
