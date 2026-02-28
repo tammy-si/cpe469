@@ -199,6 +199,12 @@ func main_client() {
 	membership := shared.NewMembership()
 	membership.Add(self_node, &self_node)
 
+	// add the node to the server's consistent hashing ring
+	addArgs := shared.AddNodeArgs{Server: fmt.Sprintf("Node%d", id)}
+	addReply := shared.AddNodeReply{}
+	server.Call("KV.AddNode", &addArgs, &addReply)
+	fmt.Printf("Node %d added to ring\n", id)
+
 	time.AfterFunc(time.Second*X_TIME, func() { runAfterX(server, &self_node, &membership, id) })
 	time.AfterFunc(time.Second*Y_TIME, func() { runAfterY(server, neighbors, &membership, id) })
 
@@ -249,6 +255,11 @@ func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Members
 func runAfterZ(server *rpc.Client, id int) {
 	self_node.Alive = false
 	self_node.Time = calcTime()
+
+	// remove from ring
+    delArgs := shared.DeleteNodeArgs{Server: fmt.Sprintf("Node%d", id)}
+    delReply := shared.DeleteNodeReply{}
+    server.Call("KV.DeleteNode", &delArgs, &delReply)
 
 	var reply shared.Node
 	if err := server.Call("Membership.Update", self_node, &reply); err != nil {

@@ -56,6 +56,7 @@ func (kv *KV) addNodeInternal(server string) {
 	sort.Slice(kv.ring, func(i, j int) bool {
 		return kv.ring[i].pos < kv.ring[j].pos
 	})
+	fmt.Printf("Added %s to ring, ring now has %d vnodes\n", server, len(kv.ring))
 }
 
 func (kv *KV) deleteNodeInternal(server string) {
@@ -214,11 +215,12 @@ func main() {
 	kv := NewKV(4) // 4 virtual nodes per server
 
 	// Initialize the 5 servers on the ring (names can be whatever you want)
-	kv.addNodeInternal("Server1")
-	kv.addNodeInternal("Server2")
-	kv.addNodeInternal("Server3")
-	kv.addNodeInternal("Server4")
-	kv.addNodeInternal("Server5")
+	// commented out for now will use the connected client nodes as nodes on the ring
+	// kv.addNodeInternal("Server1")
+	// kv.addNodeInternal("Server2")
+	// kv.addNodeInternal("Server3")
+	// kv.addNodeInternal("Server4")
+	// kv.addNodeInternal("Server5")
 
 	if err := rpc.Register(nodes); err != nil {
 		log.Fatal(err)
