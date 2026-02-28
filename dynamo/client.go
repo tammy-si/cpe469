@@ -115,6 +115,7 @@ func dynamoDemo() {
 		{"Alex", "10"},
 	}
 
+	// demo just initializes some kv the node, doesn't make it go down
 	fmt.Println("=== Initial placement (after inserts) ===")
 	for _, kv := range inserts {
 		put(server, kv.k, kv.v)
@@ -122,13 +123,13 @@ func dynamoDemo() {
 		fmt.Printf("%s -> %s\n", kv.k, getOwner(server, kv.k))
 	}
 
-	fmt.Println("\n=== After Node6 goes down ===")
-	deleteNode(server, "Node6")
+	// fmt.Println("\n=== After Node6 goes down ===")
+	// deleteNode(server, "Node6")
 
-	keys2 := []string{"Anna", "Maria", "Lauren", "John", "Thomas"}
-	for _, k := range keys2 {
-		fmt.Printf("%s -> %s\n", k, getOwner(server, k))
-	}
+	// keys2 := []string{"Anna", "Maria", "Lauren", "John", "Thomas"}
+	// for _, k := range keys2 {
+	// 	fmt.Printf("%s -> %s\n", k, getOwner(server, k))
+	// }
 }
 
 // -------------------- Main --------------------
@@ -138,6 +139,48 @@ func main() {
 	if len(args) > 0 && args[0] == "demo" {
 		dynamoDemo()
 		return
+	}
+
+	// to handle commands
+	switch args[0] {
+		case "get":
+			if (len(args) < 1) {
+				fmt.Println("Usage: get <key>")
+				return
+			}
+			server, err := rpc.DialHTTP("tcp", "localhost:9005")
+			if err != nil {
+				log.Fatal(err)
+			}
+			value := get(server, args[1])
+			fmt.Println("Value:", value)
+
+			return
+		case "put":
+			if (len(args) < 2) {
+				fmt.Println("Usage: put <key> <value>")
+				return
+			}
+			server, err := rpc.DialHTTP("tcp", "localhost:9005")
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			put(server, args[1], args[2])
+			fmt.Println("Put successful")
+			return
+		case "owner":
+			if (len(args) < 1) {
+				fmt.Println("Usage: owner <key>")
+				return
+			}
+			server, err := rpc.DialHTTP("tcp", "localhost:9005")
+			if err != nil {
+				log.Fatal(err)
+			}
+			owner := getOwner(server, args[1])
+			fmt.Printf("Key: %s is on %s\n", args[1], owner)
+			return
 	}
 	main_client()
 }
@@ -243,7 +286,9 @@ func runAfterY(server *rpc.Client, neighbors [2]int, membership **shared.Members
 		sendMessage(server, neighbors[0], *membership)
 		sendMessage(server, neighbors[1], *membership)
 
+		membershipMu.Lock()
 		*membership = readMessages(server, id, *membership)
+		membershipMu.Unlock()
 
 		checkForFailures(server, *membership);
 
@@ -344,6 +389,19 @@ func checkForFailures(server *rpc.Client, membership *shared.Membership) {
 				Hbcounter: node.Hbcounter,
 				Time: node.Time,
 				Alive: false,
+			}
+
+			// remove the node from the consisnent hashing ring
+			// note this is for convenience, in real dynamo this doesn't really happen as nodes can just come back
+			delArgs := shared.DeleteNodeArgs {
+				Server: fmt.Sprintf("Node%d", id),
+			}
+			var delReply shared.DeleteNodeReply
+			err := server.Call("KV.DeleteNode", &delArgs, &delReply)
+			if err != nil {
+				fmt.Println("Error removing node from ring:", err)
+			} else {
+				fmt.Printf("Node%d removed from ring\n", id)
 			}
 		}
 	}

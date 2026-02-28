@@ -12,3 +12,60 @@ In demo use id 1-8, one for each terminal
 
 Then to run the demo for dynamo use go run client.go demo
 
+// Sample demo run
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go demo
+=== Initial placement (after inserts) ===
+Maria -> Node6
+John -> Node8
+Anna -> Node6
+Tim -> Node4
+Alex -> Node4
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go get Maria
+Value: 100
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go owner Maria
+Key: Maria is on Node6
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go put Maria 150
+Put successful
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go get Maria
+Value: 150
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go owner Maria
+Key: Maria is on Node6
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go get Maria
+Value: 150
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go owner Maria
+Key: Maria is on Node8
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go get Maria
+Value: 150
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go put Maria 200
+Put successful
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go owner Maria
+Key: Maria is on Node8
+Tammys-MacBook-Air:dynamo tammysi$ go run client.go get Maria
+Value: 200
+
+// demo run's server side
+Tammys-MacBook-Air:dynamo tammysi$ ./server
+2026/02/27 18:37:57 RPC server listening on localhost:9005
+Added Node1 to ring, ring now has 4 vnodes
+Added Node2 to ring, ring now has 8 vnodes
+Added Node3 to ring, ring now has 12 vnodes
+Added Node4 to ring, ring now has 16 vnodes
+Added Node5 to ring, ring now has 20 vnodes
+Added Node6 to ring, ring now has 24 vnodes
+Added Node7 to ring, ring now has 28 vnodes
+Added Node8 to ring, ring now has 32 vnodes
+Replicating key=Maria to: [Node6 Node8 Node4]
+Write SUCCEEDED for key=Maria got 3 acks
+Replicating key=John to: [Node8 Node4 Node3]
+Write SUCCEEDED for key=John got 2 acks
+Replicating key=Anna to: [Node6 Node2 Node4]
+Write SUCCEEDED for key=Anna got 3 acks
+Replicating key=Tim to: [Node4 Node1 Node5]
+Write SUCCEEDED for key=Tim got 2 acks
+Replicating key=Alex to: [Node4 Node2 Node3]
+Write SUCCEEDED for key=Alex got 3 acks
+Replicating key=Maria to: [Node6 Node8 Node4]
+Write SUCCEEDED for key=Maria got 2 acks
+Replicating key=Maria to: [Node8 Node4 Node1]
+Write SUCCEEDED for key=Maria got 2 acks
+^C
